@@ -26,7 +26,9 @@ from transformers import CLIPTextModel, CLIPTextModelWithProjection, CLIPTokeniz
 from diffusers.utils.import_utils import is_invisible_watermark_available
 
 from diffusers.image_processor import PipelineImageInput, VaeImageProcessor
-from diffusers.loaders import FromSingleFileMixin, LoraLoaderMixin, TextualInversionLoaderMixin
+from diffusers.loaders import (
+    IPAdapterMixin, FromSingleFileMixin, LoraLoaderMixin, TextualInversionLoaderMixin
+)
 from diffusers.models import AutoencoderKL, ControlNetModel, UNet2DConditionModel
 from models.controlnet_union import ControlNetModel_Union
 from diffusers.models.attention_processor import (
@@ -103,7 +105,7 @@ EXAMPLE_DOC_STRING = """
 
 
 class StableDiffusionXLControlNetUnionPipeline(
-    DiffusionPipeline, TextualInversionLoaderMixin, LoraLoaderMixin, FromSingleFileMixin
+    DiffusionPipeline, TextualInversionLoaderMixin, LoraLoaderMixin, FromSingleFileMixin,IpAdapterMixin 
 ):
     r"""
     Pipeline for text-to-image generation using Stable Diffusion XL with ControlNet guidance.
