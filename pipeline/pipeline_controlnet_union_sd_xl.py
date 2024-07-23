@@ -819,7 +819,11 @@ class StableDiffusionXLControlNetUnionPipeline(
         dtype,
         do_classifier_free_guidance=False,
         guess_mode=False,
-    ):
+    ):  
+        
+        if not isinstance(image, PIL.Image.Image):
+            print(f"Image is not PIL Image. Type: {type(image)}")
+            
         image = self.control_image_processor.preprocess(image, height=height, width=width).to(dtype=torch.float32)
         image_batch_size = image.shape[0]
 
@@ -1109,25 +1113,44 @@ class StableDiffusionXLControlNetUnionPipeline(
             ]
 
         # 1. Check inputs. Raise error if not correct
-        for image in image_list:
-            if image:
-                self.check_inputs(
-                    prompt,
-                    prompt_2,
-                    image,
-                    callback_steps,
-                    negative_prompt,
-                    negative_prompt_2,
-                    prompt_embeds,
-                    negative_prompt_embeds,
-                    pooled_prompt_embeds,
-                    ip_adapter_image,
-                    ip_adapter_image_embeds,
-                    negative_pooled_prompt_embeds,
-                    controlnet_conditioning_scale,
-                    control_guidance_start,
-                    control_guidance_end,
-                )
+        if isinstance(controlnet, ControlNetModel_Union):
+            for image in image_list:
+                if image:
+                    self.check_inputs(
+                        prompt,
+                        prompt_2,
+                        image,
+                        callback_steps,
+                        negative_prompt,
+                        negative_prompt_2,
+                        prompt_embeds,
+                        negative_prompt_embeds,
+                        pooled_prompt_embeds,
+                        ip_adapter_image,
+                        ip_adapter_image_embeds,
+                        negative_pooled_prompt_embeds,
+                        controlnet_conditioning_scale,
+                        control_guidance_start,
+                        control_guidance_end,
+                    )
+        else:
+            self.check_inputs(
+            prompt,
+            prompt_2,
+            image,
+            callback_steps,
+            negative_prompt,
+            negative_prompt_2,
+            prompt_embeds,
+            negative_prompt_embeds,
+            pooled_prompt_embeds,
+            ip_adapter_image,
+            ip_adapter_image_embeds,
+            negative_pooled_prompt_embeds,
+            controlnet_conditioning_scale,
+            control_guidance_start,
+            control_guidance_end
+        )
                 
         self._guidance_scale = guidance_scale
         self._clip_skip = clip_skip
@@ -1205,16 +1228,16 @@ class StableDiffusionXLControlNetUnionPipeline(
                     image_list[idx] = image
         elif isinstance(controlnet, ControlNetModel):
             image = self.prepare_image(
-                image=image,
-                width=width,
-                height=height,
-                batch_size=batch_size * num_images_per_prompt,
-                num_images_per_prompt=num_images_per_prompt,
-                device=device,
-                dtype=controlnet.dtype,
-                do_classifier_free_guidance=self.do_classifier_free_guidance,
-                guess_mode=guess_mode,
-            )
+                        image=image,
+                        width=width,
+                        height=height,
+                        batch_size=batch_size * num_images_per_prompt,
+                        num_images_per_prompt=num_images_per_prompt,
+                        device=device,
+                        dtype=controlnet.dtype,
+                        do_classifier_free_guidance=self.do_classifier_free_guidance,
+                        guess_mode=guess_mode,
+                    )
             height, width = image.shape[-2:]
         else:
             assert False
@@ -1236,6 +1259,15 @@ class StableDiffusionXLControlNetUnionPipeline(
             generator,
             latents,
         )
+        
+        # 6.5 Optionally get Guidance Scale Embedding
+        if isinstance(controlnet, ControlNetModel):
+            timestep_cond = None
+            if self.unet.config.time_cond_proj_dim is not None:
+                guidance_scale_tensor = torch.tensor(self.guidance_scale - 1).repeat(batch_size * num_images_per_prompt)
+                timestep_cond = self.get_guidance_scale_embedding(
+                    guidance_scale_tensor, embedding_dim=self.unet.config.time_cond_proj_dim
+                ).to(device=device, dtype=latents.dtype)
 
         # 7. Prepare extra step kwargs. TODO: Logic should ideally just be moved out of the pipeline
         extra_step_kwargs = self.prepare_extra_step_kwargs(generator, eta)
@@ -1250,9 +1282,14 @@ class StableDiffusionXLControlNetUnionPipeline(
             controlnet_keep.append(keeps[0] if isinstance(controlnet, ControlNetModel) or isinstance(controlnet, ControlNetModel_Union) else keeps)
 
         # 7.2 Prepare added time ids & embeddings
-        for image in image_list:
-            if isinstance(image, torch.Tensor):
-                original_size = original_size or image.shape[-2:]
+        if isinstance(controlnet, ControlNetModel_Union):
+            for image in image_list:
+                if isinstance(image, torch.Tensor):
+                    original_size = original_size or image.shape[-2:]
+        elif isinstance(image, list):
+                original_size = original_size or image[0].shape[-2:]
+        else:
+            original_size = original_size or image.shape[-2:]
 
         target_size = target_size or (height, width)
         # print(original_size)
@@ -1328,6 +1365,17 @@ class StableDiffusionXLControlNetUnionPipeline(
                         added_cond_kwargs=controlnet_added_cond_kwargs,
                         return_dict=False,
                     )
+                else:
+                    down_block_res_samples, mid_block_res_sample = self.controlnet(
+                        control_model_input,
+                        t,
+                        controlnet_cond=image,
+                        encoder_hidden_states=controlnet_prompt_embeds,
+                        conditioning_scale=cond_scale,
+                        guess_mode=guess_mode,
+                        added_cond_kwargs=controlnet_added_cond_kwargs,
+                        return_dict=False,
+                    )
 
                 if guess_mode and self.do_classifier_free_guidance:
                     # Infered ControlNet only for the conditional batch.
@@ -1341,16 +1389,30 @@ class StableDiffusionXLControlNetUnionPipeline(
 
 
                 # predict the noise residual
-                noise_pred = self.unet(
-                    latent_model_input,
-                    t,
-                    encoder_hidden_states=prompt_embeds,
-                    cross_attention_kwargs=cross_attention_kwargs,
-                    down_block_additional_residuals=down_block_res_samples,
-                    mid_block_additional_residual=mid_block_res_sample,
-                    added_cond_kwargs=added_cond_kwargs,
-                    return_dict=False,
-                )[0]
+                if isinstance(controlnet, ControlNetModel_Union):
+                    noise_pred = self.unet(
+                        latent_model_input,
+                        t,
+                        encoder_hidden_states=prompt_embeds,
+                        cross_attention_kwargs=cross_attention_kwargs,
+                        down_block_additional_residuals=down_block_res_samples,
+                        mid_block_additional_residual=mid_block_res_sample,
+                        added_cond_kwargs=added_cond_kwargs,
+                        return_dict=False,
+                    )[0]
+                else:
+                    noise_pred = self.unet(
+                        latent_model_input,
+                        t,
+                        encoder_hidden_states=prompt_embeds,
+                        timestep_cond=timestep_cond,
+                        cross_attention_kwargs=cross_attention_kwargs,
+                        down_block_additional_residuals=down_block_res_samples,
+                        mid_block_additional_residual=mid_block_res_sample,
+                        added_cond_kwargs=added_cond_kwargs,
+                        return_dict=False,
+                    )[0]
+                    
 
                 # perform guidance
                 if self.do_classifier_free_guidance:
