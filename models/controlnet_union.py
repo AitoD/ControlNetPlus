@@ -843,6 +843,9 @@ class ControlNetModel_Union(ModelMixin, ConfigMixin, FromOriginalModelMixin):
         control_embeds = self.control_type_proj(control_type.flatten())
         control_embeds = control_embeds.reshape((t_emb.shape[0], -1))
         control_embeds = control_embeds.to(emb.dtype)
+
+            
+                    
         control_emb = self.control_add_embedding(control_embeds)
         emb = emb + control_emb
         #---------------------------------------------------------------------------------
