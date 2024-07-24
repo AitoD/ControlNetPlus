@@ -906,7 +906,7 @@ class StableDiffusionXLControlNetUnionPipeline(
     #do_classifier_free_guidance = guidance_scale > 1.0
     @property
     def do_classifier_free_guidance(self):
-        return self._guidance_scale > 1 and self.unet.config.time_cond_proj_dim is None
+        return self._guidance_scale >= 1 and self.unet.config.time_cond_proj_dim is None
     
     @property
     def cross_attention_kwargs(self):
@@ -1325,9 +1325,8 @@ class StableDiffusionXLControlNetUnionPipeline(
                 # expand the latents if we are doing classifier free guidance
                 latent_model_input = torch.cat([latents] * 2) if self.do_classifier_free_guidance else latents
                 latent_model_input = self.scheduler.scale_model_input(latent_model_input, t)
-    
                 added_cond_kwargs = {"text_embeds": add_text_embeds, "time_ids": add_time_ids, \
-                    "control_type":union_control_type.reshape(1, -1).to(device, dtype=prompt_embeds.dtype).repeat(batch_size * num_images_per_prompt * 1, 1)}
+                    "control_type": union_control_type.reshape(1, -1).to(device, dtype=prompt_embeds.dtype).repeat(batch_size * num_images_per_prompt * 2, 1)}
 
                 # controlnet(s) inference
                 if guess_mode and self.do_classifier_free_guidance:
