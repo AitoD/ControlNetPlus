@@ -256,7 +256,8 @@ class ControlNetModel_Union(ModelMixin, ConfigMixin, FromOriginalModelMixin):
         conditioning_embedding_out_channels: Optional[Tuple[int]] = (16, 32, 96, 256),
         global_pool_conditions: bool = False,
         addition_embed_type_num_heads=64,
-        num_control_type = 6,
+        # TODO: Change this param bassed on loading normal/promax model 
+        num_control_type = 8, # Number of control types available for the model , number is 6 for the original model 8 for the promax model 
     ):
         super().__init__()
 
@@ -845,7 +846,8 @@ class ControlNetModel_Union(ModelMixin, ConfigMixin, FromOriginalModelMixin):
         control_embeds = control_embeds.to(emb.dtype)
 
             
-                    
+        print(f"Shape of control_embeds before linear_1: {control_embeds.shape}")
+        #print(f"Expected input features for linear_1: {self.linear_1.in_features}")            
         control_emb = self.control_add_embedding(control_embeds)
         emb = emb + control_emb
         #---------------------------------------------------------------------------------
