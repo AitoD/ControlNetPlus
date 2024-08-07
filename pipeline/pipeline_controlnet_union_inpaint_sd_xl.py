@@ -35,7 +35,7 @@ from diffusers.loaders import (
     TextualInversionLoaderMixin,
 )
 from diffusers.models import AutoencoderKL, ControlNetModel, ImageProjection, UNet2DConditionModel
-from models.controlnet_union import ControlNetModel_Union
+from ..models.controlnet_union import ControlNetModel_Union
 from diffusers.models.attention_processor import (
     AttnProcessor2_0,
     LoRAAttnProcessor2_0,
@@ -1127,7 +1127,7 @@ class StableDiffusionXLControlNetUnionInpaintPipeline(
     # corresponds to doing no classifier free guidance.
     @property
     def do_classifier_free_guidance(self):
-        return self._guidance_scale > 1
+        return self._guidance_scale >= 1 
 
     @property
     def cross_attention_kwargs(self):
