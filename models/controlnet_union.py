@@ -846,7 +846,7 @@ class ControlNetModel_Union(ModelMixin, ConfigMixin, FromOriginalModelMixin):
         control_embeds = control_embeds.to(emb.dtype)
 
             
-        print(f"Shape of control_embeds before linear_1: {control_embeds.shape}")
+        #print(f"Shape of control_embeds before linear_1: {control_embeds.shape}")
         #print(f"Expected input features for linear_1: {self.linear_1.in_features}")            
         control_emb = self.control_add_embedding(control_embeds)
         emb = emb + control_emb
