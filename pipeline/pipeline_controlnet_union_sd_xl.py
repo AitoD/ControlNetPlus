@@ -37,7 +37,10 @@ from diffusers.loaders import (
     IPAdapterMixin, FromSingleFileMixin, StableDiffusionXLLoraLoaderMixin, TextualInversionLoaderMixin
 )
 from diffusers.models import AutoencoderKL, ControlNetModel, UNet2DConditionModel,ImageProjection
-from ..models.controlnet_union import ControlNetModel_Union
+try:
+    from ..models.controlnet_union import ControlNetModel_Union
+except:
+    from models.controlnet_union import ControlNetModel_Union
 from diffusers.models.attention_processor import (
     AttnProcessor2_0,
     LoRAAttnProcessor2_0,

@@ -36,8 +36,11 @@ from diffusers.loaders import (
     StableDiffusionXLLoraLoaderMixin,
     TextualInversionLoaderMixin,
 )
-from diffusers.models import AutoencoderKL, ImageProjection, UNet2DConditionModel
-from models.controlnet_union import ControlNetModel_Union
+from diffusers.models import AutoencoderKL, ControlNetModel,ImageProjection, UNet2DConditionModel
+try:
+    from ..models.controlnet_union import ControlNetModel_Union
+except:
+    from models.controlnet_union import ControlNetModel_Union
 from diffusers.models.attention_processor import (
     AttnProcessor2_0,
     LoRAAttnProcessor2_0,
@@ -1515,18 +1518,30 @@ class StableDiffusionXLControlNetUnionImg2ImgPipeline(
                     if isinstance(controlnet_cond_scale, list):
                         controlnet_cond_scale = controlnet_cond_scale[0]
                     cond_scale = controlnet_cond_scale * controlnet_keep[i]
-
-                down_block_res_samples, mid_block_res_sample = self.controlnet(
-                    control_model_input,
-                    t,
-                    encoder_hidden_states=controlnet_prompt_embeds,
-                    controlnet_cond_list=control_image_list,
-                    conditioning_scale=cond_scale,
-                    guess_mode=guess_mode,
-                    added_cond_kwargs=controlnet_added_cond_kwargs,
-                    return_dict=False,
-                )
-
+                if isinstance(controlnet, ControlNetModel_Union):
+                    down_block_res_samples, mid_block_res_sample = self.controlnet(
+                        control_model_input,
+                        t,
+                        encoder_hidden_states=controlnet_prompt_embeds,
+                        controlnet_cond_list=control_image_list,
+                        conditioning_scale=cond_scale,
+                        guess_mode=guess_mode,
+                        added_cond_kwargs=controlnet_added_cond_kwargs,
+                        return_dict=False,
+                    )
+                else:
+                    print(f"Controlnet is not ControlNetModel_Union but instead of instance {type(controlnet)}")
+                    down_block_res_samples, mid_block_res_sample = self.controlnet(
+                        control_model_input,
+                        t,
+                        controlnet_cond=image,
+                        encoder_hidden_states=controlnet_prompt_embeds,
+                        conditioning_scale=cond_scale,
+                        guess_mode=guess_mode,
+                        added_cond_kwargs=controlnet_added_cond_kwargs,
+                        return_dict=False,
+                    )
+                    
                 if guess_mode and self.do_classifier_free_guidance:
                     # Infered ControlNet only for the conditional batch.
                     # To apply the output of ControlNet to both the unconditional and conditional batches,

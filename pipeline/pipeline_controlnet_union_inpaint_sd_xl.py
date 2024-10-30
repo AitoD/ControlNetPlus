@@ -35,7 +35,11 @@ from diffusers.loaders import (
     TextualInversionLoaderMixin,
 )
 from diffusers.models import AutoencoderKL, ControlNetModel, ImageProjection, UNet2DConditionModel
-from ..models.controlnet_union import ControlNetModel_Union
+# Relative import
+try:
+    from ..models.controlnet_union import ControlNetModel_Union
+except:
+    from models.controlnet_union import ControlNetModel_Union
 from diffusers.models.attention_processor import (
     AttnProcessor2_0,
     LoRAAttnProcessor2_0,
